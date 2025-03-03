@@ -41,7 +41,7 @@ export class ChatBot {
         },
         body: JSON.stringify({
           model: this.config.model,
-          messages: this.messages,
+          messages: this.mergeMessage(),
           temperature: this.config.temperature,
           max_tokens: this.config.maxTokens,
         }),
@@ -69,6 +69,24 @@ export class ChatBot {
     }
   }
 
+  mergeMessage() {
+    const messages = this.messages;
+    const mergedMessages = [] as Message[];
+
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
+      const lastMessage = mergedMessages[mergedMessages.length - 1];
+
+      if (lastMessage && lastMessage.role === message.role) {
+        lastMessage.content += "\n" + message.content;
+      } else {
+        mergedMessages.push(message);
+      }
+    }
+
+    return mergedMessages;
+  }
+
   getLastMessageRole(): string | null {
     if (this.messages.length === 0) return null;
     return this.messages[this.messages.length - 1].role;
@@ -78,14 +96,14 @@ export class ChatBot {
     // 检查是否与上一条消息角色相同
     const lastRole = this.getLastMessageRole();
 
-    if (lastRole === message.role && message.role !== "system") {
-      // 如果角色相同且不是system消息，则合并消息内容
-      const lastMessage = this.messages[this.messages.length - 1];
-      lastMessage.content += "\n " + message.content;
-    } else {
-      // 角色不同或是system消息，直接添加
-      this.messages.push(message);
-    }
+    // if (lastRole === message.role && message.role !== "system") {
+    //   // 如果角色相同且不是system消息，则合并消息内容
+    //   const lastMessage = this.messages[this.messages.length - 1];
+    //   lastMessage.content += "\n " + message.content;
+    // } else {
+    //   // 角色不同或是system消息，直接添加
+    //   this.messages.push(message);
+    // }
 
     // 检查消息数是否超过上限
     if (this.messages.length > this.config.maxMessages) {
