@@ -108,7 +108,16 @@ export function apply(ctx: Context, config: Config) {
       role: "user",
       content: `${uId}: ` + session.content,
     });
-    logger.debug("messages: ", chatBot.mergeMessage());
+    logger.debug("messages length", chatBot.messages.length);
+    logger.debug("====================");
+    for (const message of chatBot.messages.slice(-5)) {
+      if (message.role === "user") {
+        logger.debug(message.content);
+      } else {
+        logger.debug("AI: " + message.content);
+      }
+    }
+    logger.debug("====================");
 
     const isReply = () => {
       // 是否@机器人
