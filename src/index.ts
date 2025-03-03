@@ -1,4 +1,4 @@
-import { Context, Schema, h } from "koishi";
+import { Context, Schema, h, Logger, Type } from "koishi";
 import { ChatBot } from "./utils";
 export const name = "chat";
 
@@ -10,31 +10,60 @@ export interface Config {
   maxTokens: number;
   maxMessages: number;
   systemPrompt: string;
+
+  isRandomReply: boolean;
+  randomReplyFrequency: number;
+  randomReplyWhiteList: string[];
+
+  isLog: boolean;
 }
 
-export const Config: Schema<Config> = Schema.object({
-  apiKey: Schema.string().description("OpenAI API密钥").required(),
-  apiUrl: Schema.string()
-    .description("OpenAI API地址（可修改为代理地址）")
-    .default("https://api.openai.com/v1/chat/completions"),
-  model: Schema.string().description("使用的模型").default("gpt-3.5-turbo"),
-  temperature: Schema.number()
-    .description("回复的随机性 (0-2)")
-    .default(0.7)
-    .min(0)
-    .max(2),
-  maxMessages: Schema.number().description("最大消息数").default(20).min(1),
-  maxTokens: Schema.number()
-    .description("最大生成令牌数")
-    .default(2000)
-    .min(50),
-  systemPrompt: Schema.string()
-    .description("AI系统提示词（定义AI的角色和行为）")
-    .default("你是一个友好的AI助手，请用简短、礼貌的方式回答问题。"),
-});
+export const Config: Schema<Config> = Schema.intersect([
+  Schema.object({
+    apiKey: Schema.string().description("OpenAI API密钥").required(),
+    apiUrl: Schema.string()
+      .description("OpenAI API地址（可修改为代理地址）")
+      .default("https://api.openai.com/v1/chat/completions"),
+    model: Schema.string().description("使用的模型").default("gpt-3.5-turbo"),
+    temperature: Schema.number()
+      .description("回复的随机性 (0-2)")
+      .default(0.7)
+      .min(0)
+      .max(2),
+    maxMessages: Schema.number().description("最大消息数").default(20).min(1),
+    maxTokens: Schema.number()
+      .description("最大生成令牌数")
+      .default(2000)
+      .min(50),
+    systemPrompt: Schema.string()
+      .description("AI系统提示词（定义AI的角色和行为）")
+      .default(
+        "你是被部署于即时通讯软件的聊天机器人，在群聊中消息以 {userId}: {content}\n ...... 格式给出。如果你要at某位用户请输出 <at id={userId}/>，私聊中只包含{content}。 "
+      ),
+    isRandomReply: Schema.boolean().default(false),
+    randomReplyFrequency: Schema.number()
+      .min(0)
+      .max(1)
+      .default(0)
+      .description("自动响应群消息的几率"),
+    randomReplyWhiteList: Schema.array(Schema.string())
+      .default([])
+      .description("在哪些群聊中使用自动响应（QQ中使用QQ群号）"),
+  }),
+  Schema.object({
+    isLog: Schema.boolean().default(false),
+  }),
+]);
+
+export let logger = new Logger(name);
 
 export function apply(ctx: Context, config: Config) {
   let chatBotMap: Map<string, ChatBot> = new Map();
+
+  if (config.isLog === true) {
+    logger.level = Logger.DEBUG;
+  }
+
   ctx
     .command("chat <message:text>", "与AI聊天")
     .action(async ({ session }, message) => {
@@ -43,13 +72,15 @@ export function apply(ctx: Context, config: Config) {
         session.guildId || session.userId
       }`;
 
+      if (session.guildId) {
+        message = `${session.userId}` + message;
+      }
+
       if (!chatBotMap.has(key)) {
         chatBotMap.set(key, new ChatBot(config));
       }
       const chatBot = chatBotMap.get(key)!;
 
-      // 直接使用 addMessage 方法来处理消息
-      // 该方法会自动处理连续相同角色消息的情况
       await chatBot.addMessage({
         role: "user",
         content: message,
@@ -59,30 +90,53 @@ export function apply(ctx: Context, config: Config) {
       return response;
     });
 
-  // 修改群聊消息监听逻辑 - 记录所有消息但不自动回复
   ctx.on("message", async (session) => {
+    logger.debug("session.content", session.content);
+
     // 只处理群聊消息
     if (!session.guildId) return;
 
+    const uId = session.userId;
     const key = `group:${session.guildId}`;
+    logger.debug("key:" + key);
 
     if (!chatBotMap.has(key)) {
       chatBotMap.set(key, new ChatBot(config));
     }
     const chatBot = chatBotMap.get(key)!;
 
-    // 获取消息内容
-    let content = session.content;
-
-    // 如果消息为空，则忽略
-    if (!content.trim()) return;
-
-    // 使用addMessage方法，它会处理连续消息的情况
+    // 记录所有群聊消息
     await chatBot.addMessage({
       role: "user",
-      content: content,
+      content: `${uId}: ` + session.content,
     });
+    logger.debug("messages: ", chatBot.messages);
 
-    // 不自动生成回复
+    const isReply = () => {
+      // 是否@机器人
+      if (session.stripped.hasAt && session.stripped.atSelf) return true;
+
+      // 是否随机发言
+      if (config.isRandomReply) {
+        for (const whilteId of config.randomReplyWhiteList) {
+          const randomNumber = Math.random();
+          if (
+            whilteId === session.guildId &&
+            randomNumber < config.randomReplyFrequency
+          ) {
+            logger.debug(
+              `${randomNumber} < ${config.randomReplyFrequency} so reply.`
+            );
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    if (isReply()) {
+      const response = await chatBot.chat();
+      session.send(h.at(session.userId) + response);
+    }
   });
 }

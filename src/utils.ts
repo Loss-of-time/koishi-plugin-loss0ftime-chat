@@ -1,4 +1,4 @@
-import { type Config } from "./index";
+import { type Config, logger } from "./index";
 
 export interface Message {
   role: "system" | "user" | "assistant";
@@ -29,6 +29,8 @@ export class ChatBot {
   }
 
   async chat(): Promise<string> {
+    logger.debug("Chating...");
+
     try {
       // 调用OpenAI API
       const response = await fetch(this.config.apiUrl, {
@@ -47,7 +49,7 @@ export class ChatBot {
 
       if (!response.ok) {
         const error = await response.text();
-        console.error("OpenAI API错误:", error);
+        logger.error("OpenAI API错误:", error);
         return `API调用失败: ${response.status} ${response.statusText}`;
       }
 
@@ -61,7 +63,8 @@ export class ChatBot {
 
       return reply;
     } catch (error) {
-      console.error("Error in chat:", error);
+      logger.error("Error in chat:", error);
+      this.clearMessage();
       throw error;
     }
   }
@@ -78,7 +81,7 @@ export class ChatBot {
     if (lastRole === message.role && message.role !== "system") {
       // 如果角色相同且不是system消息，则合并消息内容
       const lastMessage = this.messages[this.messages.length - 1];
-      lastMessage.content += "\n" + message.content;
+      lastMessage.content += "\n " + message.content;
     } else {
       // 角色不同或是system消息，直接添加
       this.messages.push(message);
@@ -89,5 +92,9 @@ export class ChatBot {
       const removeCount = this.messages.length - this.config.maxMessages;
       this.messages.splice(1, removeCount);
     }
+  }
+
+  clearMessage() {
+    this.messages = [] as Message[];
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-loss0ftime-chat",
-  "description": "test",
-  "version": "1.0.3",
+  "description": "自用,基于OpenAI API的智能聊天机器人插件，支持上下文记忆和群聊自动回复",
+  "version": "1.0.15",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -12,15 +12,19 @@
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "openai",
+    "gpt",
+    "ai",
+    "assistant"
   ],
   "peerDependencies": {
     "koishi": "^4.18.7"
   },
   "koishi": {
     "description": {
-      "en": "English Description",
-      "zh": "中文描述"
+      "en": "private",
+      "zh": "自用"
     }
   }
 }
