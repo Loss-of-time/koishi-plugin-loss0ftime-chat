@@ -38,7 +38,7 @@ export const Config: Schema<Config> = Schema.intersect([
     systemPrompt: Schema.string()
       .description("AI系统提示词（定义AI的角色和行为）")
       .default(
-        "你是被部署于即时通讯软件的聊天机器人，在群聊中消息以 {userId}: {content}\n ...... 格式给出。如果你要at某位用户请输出 <at id={userId}/>，私聊中只包含{content}。 "
+        "你是被部署于即时通讯软件的聊天机器人，在群聊中多条消息以 {userId}: {content}\n ...... 格式给出。如果你要at某位用户请输出 <at id={userId}/>，私聊中只包含{content}。 "
       ),
     isRandomReply: Schema.boolean().default(false),
     randomReplyFrequency: Schema.number()
