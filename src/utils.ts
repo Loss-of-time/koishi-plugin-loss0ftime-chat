@@ -93,9 +93,8 @@ export class ChatBot {
   }
 
   async addMessage(message: Message) {
-    // 检查是否与上一条消息角色相同
-    const lastRole = this.getLastMessageRole();
-
+    // // 检查是否与上一条消息角色相同
+    // const lastRole = this.getLastMessageRole();
     // if (lastRole === message.role && message.role !== "system") {
     //   // 如果角色相同且不是system消息，则合并消息内容
     //   const lastMessage = this.messages[this.messages.length - 1];
@@ -104,6 +103,8 @@ export class ChatBot {
     //   // 角色不同或是system消息，直接添加
     //   this.messages.push(message);
     // }
+
+    this.messages.push(message);
 
     // 检查消息数是否超过上限
     if (this.messages.length > this.config.maxMessages) {

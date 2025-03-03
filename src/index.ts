@@ -66,27 +66,27 @@ export function apply(ctx: Context, config: Config) {
     logger.level = Logger.INFO;
   }
 
-  // ctx
-  //   .command("chat <message:text>", "与AI聊天")
-  //   .action(async ({ session }, message) => {
-  //     // <是否为群聊， 群号/用户ID>
-  //     const key = `${session.guildId ? "group" : "user"}:${
-  //       session.guildId || session.userId
-  //     }`;
-  //     if (session.guildId) {
-  //       message = `${session.userId}` + message;
-  //     }
-  //     if (!chatBotMap.has(key)) {
-  //       chatBotMap.set(key, new ChatBot(config));
-  //     }
-  //     const chatBot = chatBotMap.get(key)!;
-  //     await chatBot.addMessage({
-  //       role: "user",
-  //       content: message,
-  //     });
-  //     const response = await chatBot.chat();
-  //     return response;
-  //   });
+  ctx
+    .command("chat <message:text>", "与AI聊天")
+    .action(async ({ session }, message) => {
+      // <是否为群聊， 群号/用户ID>
+      const key = `${session.guildId ? "group" : "user"}:${
+        session.guildId || session.userId
+      }`;
+      if (session.guildId) {
+        message = `${session.userId}` + message;
+      }
+      if (!chatBotMap.has(key)) {
+        chatBotMap.set(key, new ChatBot(config));
+      }
+      const chatBot = chatBotMap.get(key)!;
+      await chatBot.addMessage({
+        role: "user",
+        content: message,
+      });
+      const response = await chatBot.chat();
+      return response;
+    });
 
   ctx.on("message", async (session) => {
     logger.debug("session.content", session.content);
@@ -108,7 +108,7 @@ export function apply(ctx: Context, config: Config) {
       role: "user",
       content: `${uId}: ` + session.content,
     });
-    logger.debug("messages: ", chatBot.messages);
+    logger.debug("messages: ", chatBot.mergeMessage());
 
     const isReply = () => {
       // 是否@机器人
