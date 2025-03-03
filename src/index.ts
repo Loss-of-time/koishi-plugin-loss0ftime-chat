@@ -136,7 +136,7 @@ export function apply(ctx: Context, config: Config) {
 
     if (isReply()) {
       const response = await chatBot.chat();
-      session.send(h.at(session.userId) + response);
+      session.send(h.quote(session.messageId) + response);
     }
   });
 }
