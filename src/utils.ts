@@ -50,6 +50,7 @@ export class ChatBot {
       if (!response.ok) {
         const error = await response.text();
         logger.error("OpenAI API错误:", error);
+        this.clearMessage();
         return `API调用失败: ${response.status} ${response.statusText}`;
       }
 
