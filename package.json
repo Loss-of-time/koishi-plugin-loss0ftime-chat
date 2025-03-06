@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-loss0ftime-chat",
   "description": "自用,基于OpenAI API的智能聊天机器人插件，支持上下文记忆和群聊自动回复",
-  "version": "1.0.25",
+  "version": "1.0.27",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

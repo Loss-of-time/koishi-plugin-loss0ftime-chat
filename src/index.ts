@@ -1,5 +1,6 @@
 import { Context, Schema, h, Logger, Type } from "koishi";
 import { ChatBot } from "./utils";
+import { log } from "console";
 export const name = "chat";
 
 export interface Config {
@@ -38,7 +39,7 @@ export const Config: Schema<Config> = Schema.intersect([
     systemPrompt: Schema.string()
       .description("AI系统提示词（定义AI的角色和行为）")
       .default(
-        "你是被部署于即时通讯软件的聊天机器人，在群聊中多条消息以 {userId}: {content}\n ...... 格式给出。如果你要at某位用户请输出 <at id={userId}/>，私聊中只包含{content}。 "
+        "你是被部署于即时通讯软件的聊天机器人，在群聊中多条消息以<at id={userId}/>: {content} ...... 格式给出。群聊中使用 <at id={userId}/> 称呼用户，私聊中只包含{content}。"
       ),
     isRandomReply: Schema.boolean().default(false),
     randomReplyFrequency: Schema.number()
@@ -49,8 +50,6 @@ export const Config: Schema<Config> = Schema.intersect([
     randomReplyWhiteList: Schema.array(Schema.string())
       .default([])
       .description("在哪些群聊中使用自动响应（QQ中使用QQ群号）"),
-  }),
-  Schema.object({
     isLog: Schema.boolean().default(false),
   }),
 ]);
@@ -66,37 +65,12 @@ export function apply(ctx: Context, config: Config) {
     logger.level = Logger.INFO;
   }
 
-  ctx
-    .command("chat <message:text>", "与AI聊天")
-    .action(async ({ session }, message) => {
-      // <是否为群聊， 群号/用户ID>
-      const key = `${session.guildId ? "group" : "user"}:${
-        session.guildId || session.userId
-      }`;
-      if (session.guildId) {
-        message = `${session.userId}` + message;
-      }
-      if (!chatBotMap.has(key)) {
-        chatBotMap.set(key, new ChatBot(config));
-      }
-      const chatBot = chatBotMap.get(key)!;
-      await chatBot.addMessage({
-        role: "user",
-        content: message,
-      });
-      const response = await chatBot.chat();
-      return response;
-    });
-
   ctx.on("message", async (session) => {
-    logger.debug("session.content", session.content);
-
     // 只处理群聊消息
     if (!session.guildId) return;
 
     const uId = session.userId;
     const key = `group:${session.guildId}`;
-    logger.debug("key:" + key);
 
     if (!chatBotMap.has(key)) {
       chatBotMap.set(key, new ChatBot(config));
@@ -104,10 +78,28 @@ export function apply(ctx: Context, config: Config) {
     const chatBot = chatBotMap.get(key)!;
 
     // 记录所有群聊消息
-    await chatBot.addMessage({
+    let contentFiltered = session.elements
+      .flatMap((element) => {
+        switch (element.type) {
+          case "text":
+          case "at":
+            return [element];
+          case "image":
+            return [h.text("[图片]")];
+          case "face":
+            return [h.text("[表情]")];
+          default:
+            return []; // 或者 return []; 完全丢弃
+        }
+      })
+      .toString();
+    logger.debug("contentFiltered", contentFiltered);
+
+    chatBot.addMessage({
       role: "user",
-      content: `${uId}: ` + session.content,
+      content: `<at id="${uId}"/>: ` + contentFiltered,
     });
+
     logger.debug("messages length", chatBot.messages.length);
     logger.debug("====================");
     for (const message of chatBot.messages.slice(-5)) {
@@ -127,13 +119,11 @@ export function apply(ctx: Context, config: Config) {
       if (config.isRandomReply) {
         for (const whilteId of config.randomReplyWhiteList) {
           const randomNumber = Math.random();
+          logger.debug("randomNumber", randomNumber);
           if (
             whilteId === session.guildId &&
             randomNumber < config.randomReplyFrequency
           ) {
-            logger.debug(
-              `${randomNumber} < ${config.randomReplyFrequency} so reply.`
-            );
             return true;
           }
         }

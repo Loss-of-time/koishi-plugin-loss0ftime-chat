@@ -31,43 +31,37 @@ export class ChatBot {
   async chat(): Promise<string> {
     logger.debug("Chating...");
 
-    try {
-      // 调用OpenAI API
-      const response = await fetch(this.config.apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.config.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          messages: this.mergeMessage(),
-          temperature: this.config.temperature,
-          max_tokens: this.config.maxTokens,
-        }),
-      });
+    // 调用OpenAI API
+    const response = await fetch(this.config.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        messages: this.mergeMessage(),
+        temperature: this.config.temperature,
+        max_tokens: this.config.maxTokens,
+      }),
+    });
 
-      if (!response.ok) {
-        const error = await response.text();
-        logger.error("OpenAI API错误:", error);
-        this.clearMessage();
-        return `API调用失败: ${response.status} ${response.statusText}`;
-      }
-
-      const data = (await response.json()) as OpenAIResponse;
-      const reply = data.choices[0]?.message?.content?.trim();
-
-      this.addMessage({
-        role: "assistant",
-        content: reply,
-      });
-
-      return reply;
-    } catch (error) {
-      logger.error("Error in chat:", error);
+    if (!response.ok) {
+      const error = await response.text();
+      logger.error("OpenAI API错误:", error);
       this.clearMessage();
-      throw error;
+      return `API调用失败: ${response.status} ${response.statusText}`;
     }
+
+    const data = (await response.json()) as OpenAIResponse;
+    const reply = data.choices[0]?.message?.content?.trim();
+
+    this.addMessage({
+      role: "assistant",
+      content: reply,
+    });
+
+    return reply;
   }
 
   mergeMessage() {
@@ -85,6 +79,10 @@ export class ChatBot {
       }
     }
 
+    if (mergedMessages[1].role === "assistant") {
+      mergedMessages.splice(1, 1);
+    }
+
     return mergedMessages;
   }
 
@@ -93,7 +91,7 @@ export class ChatBot {
     return this.messages[this.messages.length - 1].role;
   }
 
-  async addMessage(message: Message) {
+  addMessage(message: Message) {
     this.messages.push(message);
     // 检查消息数是否超过上限
     if (this.messages.length > this.config.maxMessages) {
